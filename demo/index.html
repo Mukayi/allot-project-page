@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="en">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="theme-color" content="#f5f4ef"><meta name="description" content="Interactive ALLOT comparisons across three measured video diffusion settings and 32 prompts."><title>ALLOT — Interactive viewer</title><link rel="stylesheet" href="../shared.css"><link rel="stylesheet" href="styles.css"><script src="data.js" defer></script><script src="app.js" defer></script></head>
+<body>
+<header class="viewer-header"><div class="wrap viewer-nav"><a class="viewer-title" href="../">ALLOT</a><span>Interactive viewer</span><nav aria-label="Viewer links"><a href="../">Project page</a><a href="../assets/ALLOT.pdf">Paper</a></nav></div></header>
+<main id="top" class="wrap">
+<section class="viewer-intro" aria-labelledby="viewer-heading"><p class="eyebrow">Interactive results</p><h1 id="viewer-heading">Compare every measured output.</h1><p>Explore three settings and all 32 paired prompts. Switch among Dense, Default, and ALLOT, step through matching frames, inspect the same crop, and examine the solved layer–step allocation.</p></section>
+<section id="compare" class="comparison-section" aria-labelledby="comparison-heading">
+    <div class="section-top"><p class="eyebrow">01 / SEE THE DIFFERENCE</p><span class="quiet">Default and ALLOT use the same selection strategy and kernel.</span></div>
+    <div id="setting-tabs" class="setting-tabs" role="group" aria-label="Choose a measured setting"></div>
+    <div class="sample-heading"><div><h2 id="comparison-heading">Video comparison</h2><p id="sample-prompt" class="prompt"></p></div><div class="prompt-picker"><label for="sample-select">Explore all 32 prompts</label><select id="sample-select"></select><span id="selection-note" class="tiny"></span></div></div>
+    <div class="metrics" aria-label="Measurements"><div><span>This clip · Default PSNR</span><strong id="default-psnr">—</strong></div><div><span>This clip · ALLOT PSNR</span><strong id="allot-psnr">—</strong></div><div class="gain-card"><span>Fidelity gain on this clip</span><strong id="clip-gain">—</strong></div><div><span>Configuration generation time</span><strong id="wallclock">—</strong><small>Default → ALLOT · measured on A800</small></div></div>
+    <div class="player-shell">
+      <div class="player-top"><div class="segmented" role="group" aria-label="Comparison pair"><button data-pair="default-allot" aria-pressed="true">Default / ALLOT</button><button data-pair="dense-allot" aria-pressed="false">Dense / ALLOT</button><button data-pair="dense-default" aria-pressed="false">Dense / Default</button></div><button id="detail-toggle" class="ghost-button" aria-expanded="false" aria-controls="detail-panel">Inspect details <span aria-hidden="true">↗</span></button></div>
+      <div id="stage" class="stage" aria-label="Video comparison; use the slider to reveal either result">
+        <video id="video-dense" muted playsinline preload="metadata" aria-hidden="true"></video>
+        <video id="video-default" muted playsinline preload="metadata" aria-hidden="true"></video>
+        <video id="video-allot" muted playsinline preload="metadata" aria-hidden="true"></video>
+        <div class="stage-label label-left" id="left-label">Default</div><div class="stage-label label-right" id="right-label">+ ALLOT</div>
+        <div id="split-line" class="split-line"><span aria-hidden="true">‹ ›</span></div>
+        <div id="focus-box" class="focus-box" hidden></div>
+        <div id="loading" class="loading" role="status"><span></span>Loading the paired videos…</div>
+        <div id="video-error" class="video-error" role="alert" hidden></div>
+      </div>
+      <div class="wipe-control"><span id="wipe-left">Default</span><input id="wipe" type="range" min="0" max="100" value="50" aria-label="Comparison reveal percentage"><span id="wipe-right">ALLOT</span><span class="drag-hint">Drag to compare the same frame</span></div>
+      <div class="transport"><button id="play" class="play-button" aria-label="Play all videos together" disabled>▶ <span>Play</span></button><button id="previous-frame" class="frame-button" aria-label="Previous frame" title="Previous frame (left arrow)">‹</button><input id="timeline" type="range" min="0" max="80" value="0" step="1" aria-label="Video frame"><button id="next-frame" class="frame-button" aria-label="Next frame" title="Next frame (right arrow)">›</button><output id="frame-label">01 / 81</output><label class="speed-label" for="speed">Speed<select id="speed"><option value="0.25">0.25×</option><option value="0.5">0.5×</option><option value="1" selected>1×</option></select></label></div>
+    </div>
+    <div id="detail-panel" class="detail-panel" hidden><div class="detail-head"><h3>The same crop in all three videos</h3><p>Move across the video to inspect a region. On touch screens, tap the video.</p></div><div class="detail-grid"><figure><canvas id="detail-dense" width="560" height="324"></canvas><figcaption>Dense reference</figcaption></figure><figure><canvas id="detail-default" width="560" height="324"></canvas><figcaption>Default</figcaption></figure><figure><canvas id="detail-allot" width="560" height="324"></canvas><figcaption>+ ALLOT</figcaption></figure></div></div>
+    <div class="comparison-foot"><span>PSNR measures fidelity to the dense result for this prompt and seed.</span><button id="featured" class="text-button">Return to the median example ↗</button></div>
+  </section>
+<details id="allocation-details" class="allocation-expandable"><summary>Explore the layer–step allocation <span aria-hidden="true">↗</span></summary><section id="allocation" class="allocation-section" aria-labelledby="allocation-heading">
+    <div class="allocation-copy"><p class="eyebrow">02 / EXPLORE THE ALLOCATION</p><h2 id="allocation-heading">A density for<br>every layer and step.</h2><p>ALLOT shares one allocation across prompts. Explore the table used in the selected setting: darker cells retain more attention blocks.</p><div class="allocation-facts"><div><strong id="dense-count">—</strong><span>cells use dense attention</span></div><div><strong>50 × 30</strong><span>denoising steps × layers</span></div></div><p class="tiny">This is the denoising schedule, separate from the video's playback timeline.</p></div>
+    <div class="allocation-chart"><div class="chart-heading"><span id="table-setting">XAttention · 480p</span><span id="cell-reading" class="cell-reading">Step 00 · Layer 00 · 100%</span></div><canvas id="heatmap" width="1100" height="590" aria-label="Density heatmap: denoising step horizontally, layer vertically"></canvas><div class="density-legend"><span>5% retained</span><div></div><span>100% · dense</span></div><div class="step-inspector"><div class="step-inspector-heading"><strong id="active-step-heading">Step 00 · density of each layer</strong><span id="active-step-range">Range 100–100%</span></div><canvas id="step-density-bars" width="1100" height="210" aria-label="Per-layer densities at the selected denoising step"></canvas><p>Layers 0–29 · move the step slider or select a heatmap column.</p></div><div class="denoising-control"><label for="denoising-step">Denoising step <output id="step-label">00</output></label><input id="denoising-step" type="range" min="0" max="49" value="0" aria-label="Inspect a denoising step"><span id="step-density">Mean density 100%</span></div></div>
+  </section></details>
+<details id="about" class="reading-notes"><summary>How to read the comparisons</summary><p>All 32 evaluation prompts are available in each of three Wan2.1-1.3B settings. Each setting opens at the prompt nearest its median paired PSNR gain.</p><div id="experiment-details"></div></details>
+<section id="citation" class="citation-section"><div class="citation-heading"><div><p class="eyebrow">Citation</p><h2>BibTeX</h2></div><button id="copy-citation" class="text-button citation-copy" type="button" aria-live="polite">Copy citation</button></div><pre id="bibtex" tabindex="0"><code>@misc{xia2026allot,
+  title = {Sparsity Should Be ALLOTted by Output: Training-Free Allocation of Block-Sparse Attention for Video Diffusion Transformers},
+  author = {Xia, Tianze and Zhou, Xiaoling and Lan, Ruya and Liao, Yiqiao and Song, Chengru and Xiang, Shiming},
+  year = {2026}
+}</code></pre></section>
+</main><footer class="viewer-footer"><div class="wrap"><a href="../">Back to project page</a><a href="#top">Back to top ↑</a></div></footer>
+</body></html>
