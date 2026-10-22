@@ -1,9 +1,12 @@
 :root {
-  --ink: #182c25;
-  --muted: #66716a;
-  --line: #d9ded6;
-  --surface: #f5f4ef;
-  --paper: #fffefa;
+  --ink: #1f302a;
+  --muted: #6b716b;
+  --line: #d8d0c3;
+  --surface: #f2ede4;
+  --paper: #fffdf8;
+  --surface-strong: #ebe3d7;
+  --accent: #245c46;
+  --accent-hover: #173f31;
   --content: 960px;
   font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
 }
@@ -28,7 +31,7 @@ textarea {
 }
 
 :focus-visible {
-  outline: 3px solid #2e7057;
+  outline: 3px solid var(--accent);
   outline-offset: 3px;
 }
 
