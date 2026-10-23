@@ -16,11 +16,44 @@
   const pairs = { 'default-allot': ['default', 'allot'], 'dense-allot': ['dense', 'allot'], 'dense-default': ['dense', 'default'] };
   const state = { setting: null, sample: null, pair: 'default-allot', ready: false,
     playing: false, frame: 0, token: 0, seekToken: 0, details: false,
-    focus: [0.5, 0.5], dragging: false, step: 0, hover: null, heatRect: null };
+    focus: [0.5, 0.5], dragging: false, step: 0, hover: null, heatRect: null,
+    heatReveal: 1, heatToken: 0, barKey: null, barValues: null, barToken: 0,
+    wipeHinted: false, wipeTouched: false, stageSeen: false };
   const clamp = (number, low, high) => Math.min(high, Math.max(low, number));
   const fixed = (number, digits = 2) => Number(number).toFixed(digits);
   const pad = number => String(number).padStart(2, '0');
   const signed = number => `${number >= 0 ? '+' : '−'}${fixed(Math.abs(number))}`;
+  const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const easeOut = t => 1 - Math.pow(1 - t, 4);
+
+  function tweenText(el, to, format, duration = 650) {
+    const from = Number(el.dataset.value);
+    el.dataset.value = to;
+    if (reduceMotion || !Number.isFinite(from)) { el.textContent = format(to); return; }
+    const id = (el.tweenId = (el.tweenId || 0) + 1);
+    let start = null;
+    const step = now => {
+      if (el.tweenId !== id) return;
+      if (start === null) start = now;
+      const p = Math.min(1, (now - start) / duration);
+      el.textContent = format(from + (to - from) * easeOut(p));
+      if (p < 1) requestAnimationFrame(step);
+    };
+    requestAnimationFrame(step);
+  }
+
+  function placeThumb() {
+    const group = document.querySelector('.segmented');
+    const thumb = group?.querySelector('.seg-thumb');
+    const active = group?.querySelector('[aria-pressed="true"]');
+    if (!thumb || !active) return;
+    thumb.style.left = `${active.offsetLeft}px`;
+    thumb.style.top = `${active.offsetTop}px`;
+    thumb.style.bottom = 'auto';
+    thumb.style.width = `${active.offsetWidth}px`;
+    thumb.style.height = `${active.offsetHeight}px`;
+    group.classList.add('has-thumb');
+  }
 
   function setRangeFill(input) {
     const amount = 100 * (Number(input.value) - Number(input.min || 0)) / (Number(input.max || 100) - Number(input.min || 0));
@@ -134,6 +167,7 @@
     $('wipe-left').textContent = labels[left];
     $('wipe-right').textContent = labels[right];
     document.querySelectorAll('[data-pair]').forEach(button => button.setAttribute('aria-pressed', String(button.dataset.pair === pair)));
+    placeThumb();
     setWipe(Number($('wipe').value));
   }
 
@@ -151,9 +185,9 @@
     const setting = state.setting, sample = state.sample;
     $('comparison-heading').textContent = `${setting.strategy} · ${setting.resolution}`;
     $('sample-prompt').textContent = `“${sample.prompt}”`;
-    $('default-psnr').textContent = `${fixed(sample.psnr.default)} dB`;
-    $('allot-psnr').textContent = `${fixed(sample.psnr.allot)} dB`;
-    $('clip-gain').textContent = `${signed(sample.psnr.allot - sample.psnr.default)} dB`;
+    tweenText($('default-psnr'), sample.psnr.default, value => `${fixed(value)} dB`);
+    tweenText($('allot-psnr'), sample.psnr.allot, value => `${fixed(value)} dB`);
+    tweenText($('clip-gain'), sample.psnr.allot - sample.psnr.default, value => `${signed(value)} dB`);
     $('wallclock').textContent = `${fixed(setting.times.default, 1)} → ${fixed(setting.times.allot, 1)} s`;
     $('selection-note').textContent = sample.id === setting.featured ? 'Featured: nearest the median paired PSNR gain.' : `Prompt ${pad(sample.id + 1)} of 32 · same prompt and seed in all three results.`;
     $('table-setting').textContent = `${setting.strategy} · ${setting.resolution}`;
@@ -193,6 +227,7 @@
       $('loading').hidden = true;
       updateTransport();
       drawDetails();
+      hintWipe();
     } catch (error) {
       if (token === state.token) showError(error);
     }
@@ -209,7 +244,9 @@
       $('sample-select').append(option);
     }
     document.querySelectorAll('[data-setting]').forEach(button => button.setAttribute('aria-pressed', String(button.dataset.setting === id)));
-    await chooseSample(state.setting.featured);
+    const loading = chooseSample(state.setting.featured);
+    if ($('allocation-details').open) animateHeat();
+    await loading;
   }
 
   function drawDetails() {
@@ -255,11 +292,15 @@
     state.heatRect = rect;
     const cellW = rect.width / 50, cellH = rect.height / 30;
     for (let step = 0; step < 50; step++) {
+      const shown = clamp(state.heatReveal * 50 - step, 0, 1);
+      if (!shown) continue;
+      ctx.globalAlpha = shown;
       for (let layer = 0; layer < 30; layer++) {
         ctx.fillStyle = densityColor(state.setting.density[step][layer]);
         ctx.fillRect(rect.x + step * cellW, rect.y + layer * cellH, cellW + 0.25, cellH + 0.25);
       }
     }
+    ctx.globalAlpha = 1;
     // An outer dark border and inner white border keep the active column
     // visible on both sparse and dense cells.
     ctx.strokeStyle = '#123725'; ctx.lineWidth = 2.5;
@@ -287,8 +328,49 @@
     drawStepDensities();
   }
 
+  function animateHeat() {
+    const id = ++state.heatToken;
+    if (reduceMotion || !$('allocation-details').open) { state.heatReveal = 1; drawDensity(); return; }
+    let start = null;
+    const frame = now => {
+      if (id !== state.heatToken) return;
+      if (start === null) start = now;
+      const p = Math.min(1, (now - start) / 1000);
+      state.heatReveal = easeOut(p);
+      drawDensity();
+      if (p < 1) requestAnimationFrame(frame);
+    };
+    state.heatReveal = 0;
+    requestAnimationFrame(frame);
+  }
+
   function drawStepDensities() {
-    const values = state.setting.density[state.step];
+    const target = state.setting.density[state.step];
+    const key = `${state.setting.id}:${state.step}`;
+    if (state.barKey !== key) {
+      state.barKey = key;
+      const from = state.barValues;
+      const id = ++state.barToken;
+      if (reduceMotion || !from) state.barValues = target.slice();
+      else {
+        let start = null;
+        const frame = now => {
+          if (id !== state.barToken) return;
+          if (start === null) start = now;
+          const p = Math.min(1, (now - start) / 280);
+          state.barValues = from.map((value, layer) => value + (target[layer] - value) * easeOut(p));
+          paintStepBars(state.barValues);
+          if (p < 1) requestAnimationFrame(frame);
+        };
+        requestAnimationFrame(frame);
+      }
+    }
+    paintStepBars(state.barValues);
+    $('active-step-heading').textContent = `Step ${pad(state.step)} · density of each layer`;
+    $('active-step-range').textContent = `Range ${fixed(Math.min(...target) * 100, 1)}–${fixed(Math.max(...target) * 100, 1)}%`;
+  }
+
+  function paintStepBars(values) {
     const canvas = $('step-density-bars');
     const width = canvas.getBoundingClientRect().width || 550;
     const height = Math.max(105, width * 210 / 1100);
@@ -319,8 +401,25 @@
     for (const layer of [0, 5, 10, 15, 20, 25, 29]) {
       ctx.fillText(String(layer), plot.x + (layer + 0.5) * cellWidth, plot.y + plot.height + 12);
     }
-    $('active-step-heading').textContent = `Step ${pad(state.step)} · density of each layer`;
-    $('active-step-range').textContent = `Range ${fixed(Math.min(...values) * 100, 1)}–${fixed(Math.max(...values) * 100, 1)}%`;
+  }
+
+  function hintWipe() {
+    if (state.wipeHinted || state.wipeTouched || reduceMotion || !state.ready || !state.stageSeen) return;
+    state.wipeHinted = true;
+    const keys = [[0, 50], [0.35, 36], [0.7, 62], [1, 50]];
+    let start = null;
+    const frame = now => {
+      if (state.wipeTouched) return;
+      if (start === null) start = now + 350;
+      const t = clamp((now - start) / 1800, 0, 1);
+      const i = keys.findIndex(([at]) => at >= t);
+      const [t0, v0] = keys[Math.max(0, i - 1)], [t1, v1] = keys[Math.max(0, i)];
+      const local = t1 > t0 ? (t - t0) / (t1 - t0) : 1;
+      const eased = local < 0.5 ? 2 * local * local : 1 - Math.pow(-2 * local + 2, 2) / 2;
+      setWipe(v0 + (v1 - v0) * eased);
+      if (t < 1) requestAnimationFrame(frame);
+    };
+    requestAnimationFrame(frame);
   }
 
   function inspectCell(event) {
@@ -362,7 +461,7 @@
   $('timeline').addEventListener('input', event => seek(Number(event.target.value)));
   $('sample-select').addEventListener('change', event => chooseSample(event.target.value));
   $('featured').addEventListener('click', () => chooseSample(state.setting.featured));
-  $('wipe').addEventListener('input', event => setWipe(Number(event.target.value)));
+  $('wipe').addEventListener('input', event => { state.wipeTouched = true; setWipe(Number(event.target.value)); });
   $('speed').addEventListener('change', event => arms.forEach(arm => { videos[arm].playbackRate = Number(event.target.value); }));
   $('detail-toggle').addEventListener('click', () => {
     state.details = !state.details;
@@ -380,9 +479,14 @@
   });
   $('stage').addEventListener('pointerdown', event => { if (state.details && !state.dragging) setFocus(event); });
   const handle = $('split-line').querySelector('span');
-  handle.addEventListener('pointerdown', event => { state.dragging = true; $('stage').setPointerCapture(event.pointerId); event.preventDefault(); });
-  $('stage').addEventListener('pointerup', () => { state.dragging = false; });
-  $('stage').addEventListener('pointercancel', () => { state.dragging = false; });
+  handle.addEventListener('pointerdown', event => {
+    state.dragging = true; state.wipeTouched = true;
+    $('stage').classList.add('dragging');
+    $('stage').setPointerCapture(event.pointerId); event.preventDefault();
+  });
+  const endDrag = () => { state.dragging = false; $('stage').classList.remove('dragging'); };
+  $('stage').addEventListener('pointerup', endDrag);
+  $('stage').addEventListener('pointercancel', endDrag);
   $('heatmap').addEventListener('pointermove', inspectCell);
   $('heatmap').addEventListener('pointerdown', event => {
     inspectCell(event);
@@ -394,8 +498,9 @@
   });
   $('heatmap').addEventListener('pointerleave', () => { state.hover = null; drawDensity(); });
   $('denoising-step').addEventListener('input', event => { state.step = Number(event.target.value); state.hover = null; drawDensity(); });
-  $('allocation-details').addEventListener('toggle', () => { drawDensity(); });
-  window.addEventListener('resize', () => { drawDensity(); drawDetails(); });
+  $('allocation-details').addEventListener('toggle', () => { if ($('allocation-details').open) animateHeat(); else drawDensity(); });
+  window.addEventListener('resize', () => { drawDensity(); drawDetails(); placeThumb(); });
+  document.fonts?.ready?.then(placeThumb);
   document.addEventListener('keydown', event => {
     if (event.ctrlKey || event.metaKey || event.altKey || ['INPUT', 'SELECT', 'TEXTAREA', 'BUTTON', 'A'].includes(event.target.tagName)) return;
     if (event.code === 'Space') { event.preventDefault(); togglePlayback(); }
@@ -433,6 +538,32 @@
     button.addEventListener('click', () => chooseSetting(setting.id));
     $('setting-tabs').append(button);
   }
+  const revealTargets = Array.from(document.querySelectorAll('.rise'));
+  if ('IntersectionObserver' in window && !reduceMotion) {
+    const revealObserver = new IntersectionObserver(entries => {
+      entries.forEach(entry => {
+        if (!entry.isIntersecting) return;
+        const el = entry.target;
+        revealObserver.unobserve(el);
+        el.classList.add('in');
+        const settle = () => el.classList.remove('rise', 'in');
+        el.addEventListener('transitionend', event => { if (event.target === el && event.propertyName === 'opacity') settle(); });
+        setTimeout(settle, 2000);
+      });
+    }, { threshold: 0.08, rootMargin: '0px 0px -6% 0px' });
+    revealTargets.forEach(el => revealObserver.observe(el));
+    const stageObserver = new IntersectionObserver(entries => {
+      if (!entries.some(entry => entry.isIntersecting)) return;
+      stageObserver.disconnect();
+      state.stageSeen = true;
+      hintWipe();
+    }, { threshold: 0.6 });
+    stageObserver.observe($('stage'));
+  } else {
+    revealTargets.forEach(el => el.classList.remove('rise'));
+    state.stageSeen = true;
+  }
+
   chooseSetting(data.settings[0].id);
   requestAnimationFrame(tick);
 })();

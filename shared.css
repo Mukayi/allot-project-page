@@ -8,6 +8,11 @@
   --accent: #245c46;
   --accent-hover: #173f31;
   --content: 960px;
+  --ease: cubic-bezier(.2, .8, .2, 1);
+  --spring: cubic-bezier(.3, 1.25, .45, 1);
+  --blob-a: rgba(36, 92, 70, .10);
+  --blob-b: rgba(196, 168, 120, .20);
+  --blob-c: rgba(46, 112, 87, .07);
   font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
 }
 
@@ -35,7 +40,81 @@ textarea {
   outline-offset: 3px;
 }
 
+html {
+  scroll-behavior: smooth;
+}
+
+.ambient {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.ambient i {
+  position: absolute;
+  width: 56vmax;
+  height: 56vmax;
+  border-radius: 50%;
+  filter: blur(80px);
+  will-change: transform;
+}
+
+.ambient i:nth-child(1) {
+  top: -24vmax;
+  left: -18vmax;
+  background: radial-gradient(circle, var(--blob-a), transparent 64%);
+  animation: drift-a 34s ease-in-out infinite alternate;
+}
+
+.ambient i:nth-child(2) {
+  top: -8vmax;
+  right: -22vmax;
+  background: radial-gradient(circle, var(--blob-b), transparent 64%);
+  animation: drift-b 42s ease-in-out infinite alternate;
+}
+
+.ambient i:nth-child(3) {
+  bottom: -30vmax;
+  left: 20vmax;
+  background: radial-gradient(circle, var(--blob-c), transparent 64%);
+  animation: drift-c 48s ease-in-out infinite alternate;
+}
+
+@keyframes drift-a { to { transform: translate3d(12vmax, 9vmax, 0) scale(1.1); } }
+@keyframes drift-b { to { transform: translate3d(-10vmax, 12vmax, 0) scale(.92); } }
+@keyframes drift-c { to { transform: translate3d(8vmax, -12vmax, 0) scale(1.08); } }
+
+.js .rise {
+  opacity: 0;
+  transform: translateY(22px) scale(.99);
+  filter: blur(6px);
+  transition: opacity .9s var(--ease) var(--rd, 0s), transform .9s var(--ease) var(--rd, 0s), filter .9s var(--ease) var(--rd, 0s);
+}
+
+.js .rise.in {
+  opacity: 1;
+  transform: none;
+  filter: none;
+}
+
+.d1 { --rd: .08s; }
+.d2 { --rd: .16s; }
+.d3 { --rd: .24s; }
+.d4 { --rd: .32s; }
+
 @media (prefers-reduced-motion: reduce) {
+  .ambient i {
+    animation: none;
+  }
+
+  .js .rise {
+    opacity: 1;
+    transform: none;
+    filter: none;
+  }
+
   *,
   *::before,
   *::after {

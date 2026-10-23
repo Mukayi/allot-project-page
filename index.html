@@ -5,15 +5,18 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="description" content="Sparsity Should Be ALLOTted by Output: Training-Free Allocation of Block-Sparse Attention for Video Diffusion Transformers.">
   <title>Sparsity Should Be ALLOTted by Output — ALLOT</title>
+  <script>document.documentElement.classList.add('js');</script>
   <link rel="stylesheet" href="shared.css">
   <link rel="stylesheet" href="styles.css">
+  <script src="demo/data.js" defer></script>
   <script src="app.js" defer></script>
 </head>
 <body>
+  <div class="ambient" aria-hidden="true"><i></i><i></i><i></i></div>
   <main class="page">
     <header class="paper-header">
-      <h1 class="paper-title">Sparsity Should Be ALLOTted by Output: Training-Free Allocation of Block-Sparse Attention for Video Diffusion Transformers</h1>
-      <p class="authors">
+      <h1 class="paper-title rise">Sparsity Should Be ALLOTted by Output: Training-Free Allocation of Block-Sparse Attention for Video Diffusion Transformers</h1>
+      <p class="authors rise d1">
         <span>Tianze Xia<sup>1,2,4*</sup></span>
         <span>Xiaoling Zhou<sup>3,4</sup></span>
         <span>Ruya Lan<sup>1</sup></span>
@@ -21,9 +24,9 @@
         <span>Chengru Song<sup>4</sup></span>
         <span>Shiming Xiang<sup>1,2†</sup></span>
       </p>
-      <p class="affiliations">UCAS · CASIA · PKU · KlingAI Research</p>
-      <p class="affiliation-notes"><sup>1</sup>UCAS &nbsp; <sup>2</sup>CASIA &nbsp; <sup>3</sup>PKU &nbsp; <sup>4</sup>KlingAI Research &nbsp;·&nbsp; * Work done during an internship at KlingAI. &nbsp; † Corresponding author.</p>
-      <nav class="paper-links" aria-label="Paper resources">
+      <p class="affiliations rise d2">UCAS · CASIA · PKU · KlingAI Research</p>
+      <p class="affiliation-notes rise d2"><sup>1</sup>UCAS &nbsp; <sup>2</sup>CASIA &nbsp; <sup>3</sup>PKU &nbsp; <sup>4</sup>KlingAI Research &nbsp;·&nbsp; * Work done during an internship at KlingAI. &nbsp; † Corresponding author.</p>
+      <nav class="paper-links rise d3" aria-label="Paper resources">
         <a href="assets/ALLOT.pdf">Paper</a>
         <span class="link-sep" aria-hidden="true">·</span>
         <a href="demo/">Full Demo</a>
@@ -34,7 +37,7 @@
 
     <section id="comparison" class="section comparison-section" aria-labelledby="comparison-heading">
       <h2 id="comparison-heading" class="visually-hidden">Representative comparison</h2>
-      <div class="video-pair">
+      <div class="video-pair rise">
         <figure class="video-column">
           <div class="video-heading">
             <span class="video-label">XAttention Default</span>
@@ -52,7 +55,9 @@
             poster="media/xattention-480/15-allot.jpg" src="media/xattention-480/15-allot.mp4"></video>
         </figure>
       </div>
-      <div class="comparison-controls">
+      <div id="comparison-progress" class="comparison-progress rise d1" role="slider" tabindex="0"
+        aria-label="Comparison playback position" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"><span></span></div>
+      <div class="comparison-controls rise d1">
         <button id="comparison-toggle" class="action-button" type="button" aria-pressed="false">Play comparison</button>
         <p class="comparison-caption">
           Representative held-out prompt selected near the median paired PSNR gain on Wan2.1-1.3B with XAttention (480p, 81 frames, 50 steps):
@@ -63,18 +68,28 @@
     </section>
 
     <section id="overview" class="section" aria-labelledby="overview-heading">
-      <h2 id="overview-heading">Overview</h2>
-      <p>
+      <h2 id="overview-heading" class="rise">Overview</h2>
+      <p class="rise d1">
         Full 3D attention is costly in video Diffusion Transformers, and block-sparse attention reduces this cost by computing only selected attention blocks. Existing pipelines, however, either overlook the potential to optimize sparsity allocation across layers and denoising steps or rely on heuristic rules and local metrics. We observe that sparsifying attention in different layer–step cells affects final-video fidelity to substantially different degrees, yet the sensitivity rankings of cells are nearly input-invariant across prompts.
       </p>
-      <p>
+      <p class="rise d2">
         Building on these findings, we propose <strong>ALLOT</strong> (<strong>A</strong>llocating <strong>L</strong>ayer–step <strong>L</strong>atency by <strong>O</strong>utput <strong>T</strong>ests), a training-free sparsity allocation method. Treating each layer–step pair as a cell, ALLOT combines cell probing and trajectory calibration to estimate each cell’s contribution to final-video error and allocate per-cell densities under a measured latency budget while preserving existing selection strategies and kernels. At equal or shorter wall-clock time, ALLOT achieves an 11.8 dB PSNR gain over XAttention’s default on HunyuanVideo and outperforms or ties the default in all nine settings across four additional published pipelines.
       </p>
     </section>
 
     <section id="method" class="section" aria-labelledby="method-heading">
-      <h2 id="method-heading">Method</h2>
-      <figure class="method-figure">
+      <h2 id="method-heading" class="rise">Method</h2>
+      <div id="method-viz" class="method-viz rise d1">
+        <div class="viz-bar" role="group" aria-label="Method steps">
+          <button class="viz-step" type="button" data-n="1" aria-pressed="false"><i>1</i>Cell probing</button>
+          <button class="viz-step" type="button" data-n="2" aria-pressed="false"><i>2</i>Trajectory calibration</button>
+          <button class="viz-step" type="button" data-n="3" aria-pressed="false"><i>3</i>Budgeted allocation</button>
+          <button class="viz-play" type="button" aria-label="Play the method walkthrough">▶</button>
+        </div>
+        <div class="vz-scroll"><svg class="vz" viewBox="0 0 900 312" role="img" aria-labelledby="method-viz-caption"></svg></div>
+        <p id="method-viz-caption" class="viz-cap" aria-live="polite"></p>
+      </div>
+      <figure class="method-figure rise">
         <img src="assets/method.svg" alt="ALLOT method overview: offline cell probing, trajectory calibration on generated videos, and budgeted layer-step density allocation reused at inference." loading="lazy">
         <figcaption>
           <strong>From offline output tests to a reusable layer–step density table.</strong>
@@ -86,39 +101,39 @@
     </section>
 
     <section id="results" class="section" aria-labelledby="results-heading">
-      <h2 id="results-heading">Results</h2>
+      <h2 id="results-heading" class="rise">Results</h2>
       <div class="result-columns">
-        <div class="result-item">
-          <p class="result-figure">+11.8 dB</p>
+        <div class="result-item rise d1">
+          <p class="result-figure"><span data-count="11.8" data-dec="1" data-prefix="+">+11.8</span> dB</p>
           <p class="result-detail">PSNR gain over XAttention’s default allocation on HunyuanVideo at equal or shorter wall-clock time, while outperforming every compared allocation strategy on Wan2.1-1.3B (+7.23 dB mean PSNR gain at 480p).</p>
         </div>
-        <div class="result-item">
-          <p class="result-figure">9 / 9</p>
+        <div class="result-item rise d2">
+          <p class="result-figure"><span data-count="9">9</span> / 9</p>
           <p class="result-detail">Settings that outperform or tie defaults across four additional pipelines (SVOO, SVG2, SpargeAttn, and Radial) on Wan2.1, Wan2.2, and HunyuanVideo—winning or tying in all nine settings.</p>
         </div>
-        <div class="result-item">
-          <p class="result-figure">5 pipelines</p>
+        <div class="result-item rise d3">
+          <p class="result-figure"><span data-count="5">5</span> pipelines</p>
           <p class="result-detail">Total block-sparse attention pipelines evaluated (XAttention, SVOO, SVG2, SpargeAttn, and Radial) across four video diffusion backbones while leaving each pipeline’s selection strategy and sparse kernel unchanged.</p>
         </div>
       </div>
     </section>
 
     <section id="full-demo" class="section demo-cta-section" aria-labelledby="demo-cta-heading">
-      <h2 id="demo-cta-heading">Full Interactive Demo</h2>
-      <p>
+      <h2 id="demo-cta-heading" class="rise">Full Interactive Demo</h2>
+      <p class="rise d1">
         Explore all 32 evaluation prompts across three measured Wan2.1-1.3B settings (XAttention 480p, SpargeAttn 480p, and SpargeAttn 720p), with interactive Dense / Default / ALLOT wipe comparisons, frame-by-frame stepping, region-of-interest crops, and the solved 50 × 30 layer–step density schedule.
       </p>
-      <p class="cta-row">
+      <p class="cta-row rise d2">
         <a class="cta-link" href="demo/">Open the full interactive viewer (3 settings × 32 prompts) →</a>
       </p>
     </section>
 
     <section id="citation" class="section citation-section" aria-labelledby="citation-heading">
-      <div class="citation-header">
+      <div class="citation-header rise">
         <h2 id="citation-heading">BibTeX</h2>
         <button id="copy-citation" class="action-button" type="button" aria-live="polite">Copy citation</button>
       </div>
-      <pre id="bibtex" tabindex="0"><code>@misc{xia2026allot,
+      <pre id="bibtex" class="rise d1" tabindex="0"><code>@misc{xia2026allot,
   title = {Sparsity Should Be ALLOTted by Output: Training-Free Allocation of Block-Sparse Attention for Video Diffusion Transformers},
   author = {Xia, Tianze and Zhou, Xiaoling and Lan, Ruya and Liao, Yiqiao and Song, Chengru and Xiang, Shiming},
   year = {2026}
